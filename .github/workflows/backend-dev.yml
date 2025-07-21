@@ -49,7 +49,7 @@ jobs:
       with:
         images: ${{ secrets.REGISTRY }}/${{ secrets.REPO_NAME }}
         tags: |
-          type=raw,value=backend-${{ github.ref_name }}-${{ steps.short-sha.outputs.short_sha }}
+          type=raw,value=be-dev-${{ steps.short-sha.outputs.short_sha }}
         flavor: |
           latest=false
 
@@ -80,7 +80,7 @@ jobs:
         echo "Updating Helm Chart Repository with new backend image tag: ${IMAGE_TAG}"
           
           # Clone helm chart repository
-          git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHAR_USERNAME }}/${{ secrets.HELM_CHAR_REPO }}.git
+          git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHART_USERNAME }}/${{ secrets.HELM_CHART_REPO }}.git
           cd ${HELM_REPO}
           
           # Configure git
