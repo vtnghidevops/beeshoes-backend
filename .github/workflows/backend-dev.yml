@@ -58,10 +58,8 @@ jobs:
       id: tag
       run: |
         # Extract just the tag part (after the last colon)
-        FULL_TAG="${{ steps.meta.outputs.tags }}"
-        TAG_ONLY=$(echo "$FULL_TAG" | sed 's/.*://')
+        TAG_ONLY=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/.*://')
         echo "tag-only=$TAG_ONLY" >> $GITHUB_OUTPUT
-        echo "full-tag=$FULL_TAG" >> $GITHUB_OUTPUT
 
     - name: Build and push Docker image
       id: build
@@ -71,7 +69,7 @@ jobs:
         file: Dockerfile
         platforms: linux/amd64
         push: true
-        tags: ${{ steps.tag.outputs.full-tag }}
+        tags: ${{ secrets.REGISTRY }}/${{ secrets.REPO_NAME }}:${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
