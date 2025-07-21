@@ -18,7 +18,8 @@ jobs:
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
+      image-tag: ${{ steps.tag.outputs.tag-only }}
+      full-image: ${{ steps.tag.outputs.full-tag }}
       commit-sha: ${{ steps.short-sha.outputs.short_sha }}
 
     steps:
@@ -53,6 +54,17 @@ jobs:
         flavor: |
           latest=false
 
+    - name: Extract Tag Only
+      id: tag
+      run: |
+        # Extract just the tag part (after the last colon)
+        FULL_TAG="${{ steps.meta.outputs.tags }}"
+        TAG_ONLY=$(echo "$FULL_TAG" | sed 's/.*://')
+        echo "full-tag=$FULL_TAG" >> $GITHUB_OUTPUT
+        echo "tag-only=$TAG_ONLY" >> $GITHUB_OUTPUT
+        echo "📦 Full image: $FULL_TAG"
+        echo "🏷️  Tag only: $TAG_ONLY"
+
     - name: Build and push Docker image
       id: build
       uses: docker/build-push-action@v5
@@ -61,7 +73,7 @@ jobs:
         file: Dockerfile
         platforms: linux/amd64
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
+        tags: ${{ steps.tag.outputs.full-tag }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -82,11 +94,11 @@ jobs:
         # Clone helm chart repository
         git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHART_USERNAME }}/${{ secrets.HELM_CHART_REPO }}.git
         cd ${{ secrets.HELM_CHART_REPO }}
-        
+
         # Configure git
         git config user.email "${{ secrets.GIT_EMAIL }}"
         git config user.name "${{ secrets.GIT_USERNAME }}"
-        
+
         # Update backend image tag in dev values file
         if command -v yq &> /dev/null; then
           yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i values.yaml
@@ -94,12 +106,10 @@ jobs:
           # Fallback to sed if yq not available
           sed -i "s|backend:\s*image:\s*tag:.*|backend:\n   image:\n     tag: \"${IMAGE_TAG}\"|g" values.yaml
         fi
-        
+
         # Commit and push changes
         git add values.yaml
         git commit -m "feat(backend): update dev image tag to ${IMAGE_TAG} from commit ${{ needs.build-image.outputs.commit-sha }}"
         git push origin main
-        
-        echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"
 
-   
+        echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"
