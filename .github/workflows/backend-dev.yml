@@ -75,31 +75,31 @@ jobs:
     - name: Update Helm Chart Repository
       run: |
         # Set image tag for deployment
-        IMAGE_TAG=${{ needs.build-image.outputs.image-tag }}
+        IMAGE_TAG=${{ secrets.REGISTRY }}/${{ secrets.REPO_NAME }}:${{ needs.build-image.outputs.image-tag }}
 
         echo "Updating Helm Chart Repository with new backend image tag: ${IMAGE_TAG}"
           
-          # Clone helm chart repository
-          git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHART_USERNAME }}/${{ secrets.HELM_CHART_REPO }}.git
-          cd ${HELM_REPO}
-          
-          # Configure git
-          git config user.email "${{ secrets.GIT_EMAIL }}"
-          git config user.name "${{ secrets.GIT_USERNAME }}"
-          
-          # Update backend image tag in dev values file
-          if command -v yq &> /dev/null; then
-            yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i envs/dev/dev-values.yaml
-          else
-            # Fallback to sed if yq not available
-            sed -i "s|backend:\s*image:\s*tag:.*|backend:\n   image:\n     tag: \"${IMAGE_TAG}\"|g" envs/dev/dev-values.yaml
-          fi
-          
-          # Commit and push changes
-          git add envs/dev/dev-values.yaml
-          git commit -m "feat(backend): update dev image tag to ${IMAGE_TAG} from commit ${{ needs.build-image.outputs.commit-sha }}"
-          git push origin main
-          
-          echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"
+        # Clone helm chart repository
+        git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHART_USERNAME }}/${{ secrets.HELM_CHART_REPO }}.git
+        cd $ {{ secrets.HELM_CHART_REPO }}
+        
+        # Configure git
+        git config user.email "${{ secrets.GIT_EMAIL }}"
+        git config user.name "${{ secrets.GIT_USERNAME }}"
+        
+        # Update backend image tag in dev values file
+        if command -v yq &> /dev/null; then
+          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i envs/dev/dev-values.yaml
+        else
+          # Fallback to sed if yq not available
+          sed -i "s|backend:\s*image:\s*tag:.*|backend:\n   image:\n     tag: \"${IMAGE_TAG}\"|g" envs/dev/dev-values.yaml
+        fi
+        
+        # Commit and push changes
+        git add envs/dev/dev-values.yaml
+        git commit -m "feat(backend): update dev image tag to ${IMAGE_TAG} from commit ${{ needs.build-image.outputs.commit-sha }}"
+        git push origin main
+        
+        echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"
 
    
