@@ -3,8 +3,7 @@ name: Backend Staging Deployment
 on:
   push:
     tags:
-    - 'backend-staging-*'
-    branches: [ staging ]
+    - 'be-stag-*'
   pull_request:
     branches: [ staging ]
     types: [ closed ]
