@@ -73,7 +73,6 @@ jobs:
     needs: build-image
     steps:
     - name: Update Helm Chart Repository
-      needs: build-image
       run: |
         # Set image tag for deployment
         IMAGE_TAG=${{ needs.build-image.outputs.image-tag }}
