@@ -97,7 +97,7 @@ jobs:
 
         # Commit and push changes
         git add values.yaml
-        git commit -m "feat(backend): update dev image tag to ${IMAGE_TAG} from commit ${{ needs.build-image.outputs.commit-sha }}"
+        git commit -m "feat(backend): update image tag ${IMAGE_TAG} from commit ${{ needs.build-image.outputs.commit-sha }}"
         git push origin main
 
         echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"

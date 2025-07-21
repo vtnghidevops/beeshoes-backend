@@ -1,22 +1,20 @@
 name: Backend Production Deployment
 
 on:
-  push:
-    tags:
-    - 'be-prod-*'
-  pull_request:
-    branches: [ main ]
-    types: [ closed ]
   workflow_dispatch:
     inputs:
+      image_tag:
+        description: 'Backend image tag to deploy (e.g., be-dev-a1b2c, be-stag-x1y2z)'
+        required: true
+        type: string
       confirm_production:
         description: 'Type "PRODUCTION" to confirm deployment'
         required: true
         type: string
 
 jobs:
-  validate-inputs:
-    name: Validate Production Deployment
+  validate-and-deploy:
+    name: Validate and Deploy to Production
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -28,46 +26,25 @@ jobs:
         fi
         echo "Production deployment confirmed"
 
-  generate-image-tag:
-    name: Generate Image Tag
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-    - name: Generate short commit hash
-      id: short-sha
-      run: echo "short_sha=${GITHUB_SHA:0:5}" >> $GITHUB_OUTPUT
+    - name: Validate image tag format
+      run: |
+        IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+        if [[ ! "$IMAGE_TAG" =~ ^be-(dev|stag|prod)-[a-zA-Z0-9]+$ ]]; then
+          echo "Invalid image tag format. Expected: be-{env}-{version} (e.g., be-dev-a1b2c)"
+          exit 1
+        fi
+        echo "Image tag format is valid: $IMAGE_TAG"
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.REGISTRY }}/${{ secrets.REPO_NAME }}
-        tags: |
-          type=raw,value=backend-${{ github.ref_name }}-${{ steps.short-sha.outputs.short_sha }}
-        flavor: |
-          latest=false
-
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      commit-sha: ${{ steps.short-sha.outputs.short_sha }}
-
-  deploy-to-helm-chart:
-    name: Update Helm Chart Repository
-    runs-on: ubuntu-latest
-    environment: production
-    needs: generate-image-tag
-    steps:
     - name: Update Helm Chart Repository
-      needs: generate-image-tag
       run: |
         # Set image tag for deployment
-        IMAGE_TAG=${{ needs.generate-image-tag.outputs.image-tag }}
+        IMAGE_TAG="${{ github.event.inputs.image_tag }}"
 
-        echo "Updating Helm Chart Repository with new backend image tag: ${IMAGE_TAG}"
+        echo "Updating Helm Chart Repository with backend image tag: ${IMAGE_TAG}"
 
         # Clone helm chart repository
         git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHAR_USERNAME }}/${{ secrets.HELM_CHAR_REPO }}.git
-        cd ${HELM_REPO}
+        cd ${{ secrets.HELM_CHAR_REPO }}
 
         # Configure git
         git config user.email "${{ secrets.GIT_EMAIL }}"
@@ -78,12 +55,12 @@ jobs:
           yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i envs/prod/prod-values.yaml
         else
           # Fallback to sed if yq not available
-          sed -i "s|backend:\s*image:\s*tag:.*|backend:\n  image:\n    tag: \"${IMAGE_TAG}\"|g" envs/prod/prod-values.yaml
+          sed -i "s|tag:.*|tag: \"${IMAGE_TAG}\"|g" envs/prod/prod-values.yaml
         fi
 
         # Commit and push changes
         git add envs/prod/prod-values.yaml
-        git commit -m "feat(backend): update production image tag to ${IMAGE_TAG} from commit ${{ needs.generate-image-tag.outputs.commit-sha }}"
+        git commit -m "feat(backend): update production image tag to ${IMAGE_TAG} (manual deployment)"
         git push origin main
 
         echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"

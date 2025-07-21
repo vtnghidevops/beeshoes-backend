@@ -1,76 +1,66 @@
 name: Backend Staging Deployment
 
 on:
-  push:
-    tags:
-    - 'be-stag-*'
-  pull_request:
-    branches: [ staging ]
-    types: [ closed ]
   workflow_dispatch:
     inputs:
-      confirm_production:
-        description: 'Type "PRODUCTION" to confirm deployment'
+      image_tag:
+        description: 'Backend image tag to deploy (e.g., be-dev-a1b2c, be-stag-x1y2z)'
+        required: true
+        type: string
+      confirm_staging:
+        description: 'Type "STAGING" to confirm deployment'
         required: true
         type: string
 
 jobs:
-  generate-image-tag:
-    name: Generate Image Tag
+  validate-and-deploy:
+    name: Validate and Deploy to Staging
     runs-on: ubuntu-latest
     environment: staging
     steps:
-    - name: Generate short commit hash
-      id: short-sha
-      run: echo "short_sha=${GITHUB_SHA:0:5}" >> $GITHUB_OUTPUT
+    - name: Validate confirmation
+      run: |
+        if [ "${{ github.event.inputs.confirm_staging }}" != "STAGING" ]; then
+          echo "Staging deployment not confirmed. Please type 'STAGING' to confirm."
+          exit 1
+        fi
+        echo "Staging deployment confirmed"
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.REGISTRY }}/${{ secrets.REPO_NAME }}
-        tags: |
-          type=raw,value=backend-${{ github.ref_name }}-${{ steps.short-sha.outputs.short_sha }}
-        flavor: |
-          latest=false
+    - name: Validate image tag format
+      run: |
+        IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+        if [[ ! "$IMAGE_TAG" =~ ^be-(dev|stag|prod)-[a-zA-Z0-9]+$ ]]; then
+          echo "Invalid image tag format. Expected: be-{env}-{version} (e.g., be-dev-a1b2c)"
+          exit 1
+        fi
+        echo "Image tag format is valid: $IMAGE_TAG"
 
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      commit-sha: ${{ steps.short-sha.outputs.short_sha }}
-
-  deploy-to-helm-chart:
-    name: Update Helm Chart Repository
-    runs-on: ubuntu-latest
-    environment: staging
-    needs: generate-image-tag
-    steps:
     - name: Update Helm Chart Repository
-      needs: generate-image-tag
       run: |
         # Set image tag for deployment
-        IMAGE_TAG=${{ needs.generate-image-tag.outputs.image-tag }}
+        IMAGE_TAG="${{ github.event.inputs.image_tag }}"
           
-        echo "Updating Helm Chart Repository with new backend image tag: ${IMAGE_TAG}"
+        echo "Updating Helm Chart Repository with backend image tag: ${IMAGE_TAG}"
           
         # Clone helm chart repository
         git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHAR_USERNAME }}/${{ secrets.HELM_CHAR_REPO }}.git
-        cd ${HELM_REPO}
-        
+        cd ${{ secrets.HELM_CHAR_REPO }}
+
         # Configure git
         git config user.email "${{ secrets.GIT_EMAIL }}"
         git config user.name "${{ secrets.GIT_USERNAME }}"
-        
+
         # Update backend image tag in staging values file
         if command -v yq &> /dev/null; then
           yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i envs/staging/staging-values.yaml
         else
           # Fallback to sed if yq not available
-          sed -i "s|backend:\s*image:\s*tag:.*|backend:\n  image:\n    tag: \"${IMAGE_TAG}\"|g" envs/staging/staging-values.yaml
+          sed -i "s|tag:.*|tag: \"${IMAGE_TAG}\"|g" envs/staging/staging-values.yaml
         fi
-        
+
         # Commit and push changes
         git add envs/staging/staging-values.yaml
-        git commit -m "feat(backend): update staging image tag to ${IMAGE_TAG} from commit ${{ needs.generate-image-tag.outputs.commit-sha }}"
+        git commit -m "feat(backend): update staging image tag to ${IMAGE_TAG} (manual deployment)"
         git push origin main
-        
+
         echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"
