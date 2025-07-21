@@ -81,7 +81,7 @@ jobs:
           
         # Clone helm chart repository
         git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHART_USERNAME }}/${{ secrets.HELM_CHART_REPO }}.git
-        cd $ {{ secrets.HELM_CHART_REPO }}
+        cd ${{ secrets.HELM_CHART_REPO }}
         
         # Configure git
         git config user.email "${{ secrets.GIT_EMAIL }}"
