@@ -3,7 +3,7 @@ name: Backend Production Deployment
 on:
   push:
     tags:
-    - 'backend-prod-*'
+    - 'be-prod-*'
     branches: [ main ]
   pull_request:
     branches: [ main ]

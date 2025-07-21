@@ -6,7 +6,7 @@ on:
     types: [ closed ]
   push:
     tags:
-    - 'backend-dev-*'
+    - 'be-dev-*'
     branches: [ develop ]
 
 jobs:
