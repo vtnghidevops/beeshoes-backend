@@ -1,0 +1,77 @@
+name: Backend Staging Deployment
+
+on:
+  push:
+    tags:
+    - 'backend-staging-*'
+    branches: [ staging ]
+  pull_request:
+    branches: [ staging ]
+    types: [ closed ]
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Type "PRODUCTION" to confirm deployment'
+        required: true
+        type: string
+
+jobs:
+  generate-image-tag:
+    name: Generate Image Tag
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+    - name: Generate short commit hash
+      id: short-sha
+      run: echo "short_sha=${GITHUB_SHA:0:5}" >> $GITHUB_OUTPUT
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ secrets.REGISTRY }}/${{ secrets.REPO_NAME }}
+        tags: |
+          type=raw,value=backend-${{ github.ref_name }}-${{ steps.short-sha.outputs.short_sha }}
+        flavor: |
+          latest=false
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      commit-sha: ${{ steps.short-sha.outputs.short_sha }}
+
+  deploy-to-helm-chart:
+    name: Update Helm Chart Repository
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: generate-image-tag
+    steps:
+    - name: Update Helm Chart Repository
+      needs: generate-image-tag
+      run: |
+        # Set image tag for deployment
+        IMAGE_TAG=${{ needs.generate-image-tag.outputs.image-tag }}
+          
+        echo "Updating Helm Chart Repository with new backend image tag: ${IMAGE_TAG}"
+          
+        # Clone helm chart repository
+        git clone https://${{ secrets.HELM_CHAR_TOKEN }}@github.com/${{ secrets.HELM_CHAR_USERNAME }}/${{ secrets.HELM_CHAR_REPO }}.git
+        cd ${HELM_REPO}
+        
+        # Configure git
+        git config user.email "${{ secrets.GIT_EMAIL }}"
+        git config user.name "${{ secrets.GIT_USERNAME }}"
+        
+        # Update backend image tag in staging values file
+        if command -v yq &> /dev/null; then
+          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i envs/staging/staging-values.yaml
+        else
+          # Fallback to sed if yq not available
+          sed -i "s|backend:\s*image:\s*tag:.*|backend:\n  image:\n    tag: \"${IMAGE_TAG}\"|g" envs/staging/staging-values.yaml
+        fi
+        
+        # Commit and push changes
+        git add envs/staging/staging-values.yaml
+        git commit -m "feat(backend): update staging image tag to ${IMAGE_TAG} from commit ${{ needs.generate-image-tag.outputs.commit-sha }}"
+        git push origin main
+        
+        echo "Successfully updated helm chart repository with backend image tag: ${IMAGE_TAG}"
