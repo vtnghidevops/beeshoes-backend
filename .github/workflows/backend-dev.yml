@@ -70,6 +70,7 @@ jobs:
     name: Update Helm Chart Repository
     runs-on: ubuntu-latest
     environment: dev
+    needs: build-image
     steps:
     - name: Update Helm Chart Repository
       needs: build-image
