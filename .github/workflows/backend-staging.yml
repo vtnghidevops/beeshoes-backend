@@ -4,7 +4,6 @@ on:
   push:
     tags:
     - 'be-stag-*'
-    branches: [ staging ]
   pull_request:
     branches: [ staging ]
     types: [ closed ]
