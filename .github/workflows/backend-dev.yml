@@ -4,9 +4,6 @@ on:
   pull_request:
     branches: [ develop ]
     types: [ closed ]
-  push:
-    tags:
-    - 'be-dev-*'
 
 jobs:
   build-image:
