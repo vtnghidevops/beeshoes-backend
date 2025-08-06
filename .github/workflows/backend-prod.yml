@@ -90,7 +90,7 @@ jobs:
         fi
 
         # Commit and push changes
-        git add ${VALUES_FILE}/values-pro.yaml
+        git add ${VALUES_FILE}/values-prod.yaml
         git commit -m "feat(backend): update production image tag to ${IMAGE_TAG} (manual deployment)"
         git push origin main
 
