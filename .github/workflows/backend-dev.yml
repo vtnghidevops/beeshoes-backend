@@ -29,6 +29,21 @@ jobs:
       with:
         platforms: linux/amd64,linux/arm64
 
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    # - name: SonarCloud Scan
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    #   run: |
+    #     mvn clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+    #       -Dsonar.login=$SONAR_TOKEN
+
     - name: Generate short commit hash
       id: short-sha
       run: echo "short_sha=${GITHUB_SHA:0:5}" >> $GITHUB_OUTPUT
@@ -69,6 +84,8 @@ jobs:
     environment: dev
     needs: build-image
     steps:
+    - name: Install yq
+      uses: mikefarah/yq@v4.44.2
     - name: Update Helm Chart Repository
       run: |
         # Set image tag for deployment
@@ -88,8 +105,8 @@ jobs:
         if command -v yq &> /dev/null; then
           yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i values.yaml
         else
-          # Fallback to sed if yq not available
-          sed -i "s|backend:\s*image:\s*tag:.*|backend:\n   image:\n     tag: \"${IMAGE_TAG}\"|g" values.yaml
+          # Fallback to sed if yq not available - update only backend.image.tag
+          sed -i 's|^\([[:space:]]*backend:[^\n]*\n[[:space:]]*image:[^\n]*\n[[:space:]]*tag:\) ".*"|\1 "'${IMAGE_TAG}'"|' values.yaml
         fi
 
         # Commit and push changes
