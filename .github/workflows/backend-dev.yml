@@ -87,6 +87,8 @@ jobs:
     - name: Install yq
       uses: mikefarah/yq@v4.44.2
     - name: Update Helm Chart Repository
+      env:
+        VALUES_FILE: beeshoes-dev-bundle/beeshoes-chart
       run: |
         # Set image tag for deployment
         IMAGE_TAG=${{ needs.build-image.outputs.image-tag }}
@@ -103,14 +105,11 @@ jobs:
 
         # Update backend image tag in dev values file
         if command -v yq &> /dev/null; then
-          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i values.yaml
-        else
-          # Fallback to sed if yq not available - update only backend.image.tag
-          sed -i 's|^\([[:space:]]*backend:[^\n]*\n[[:space:]]*image:[^\n]*\n[[:space:]]*tag:\) ".*"|\1 "'${IMAGE_TAG}'"|' values.yaml
+          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i ${VALUES_FILE}/values-dev.yaml
         fi
 
         # Commit and push changes
-        git add values.yaml
+        git add ${VALUES_FILE}/values-dev.yaml
         git commit -m "feat(backend): update image tag ${IMAGE_TAG} from commit ${{ needs.build-image.outputs.commit-sha }}"
         git push origin main
 

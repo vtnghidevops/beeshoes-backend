@@ -73,6 +73,8 @@ jobs:
       uses: mikefarah/yq@v4.44.2
 
     - name: Update Helm Chart Repository
+      env:
+        VALUES_FILE: beeshoes-stag-bundle/beeshoes-chart
       run: |
         # Set image tag for deployment
         IMAGE_TAG="${{ github.event.inputs.image_tag }}"
@@ -89,14 +91,11 @@ jobs:
 
         # Update backend image tag in staging values file
         if command -v yq &> /dev/null; then
-          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i envs/staging/staging-values.yaml
-        else
-          # Fallback to sed if yq not available - update only backend.image.tag
-          sed -i 's|^\([[:space:]]*backend:[^\n]*\n[[:space:]]*image:[^\n]*\n[[:space:]]*tag:\) ".*"|\1 "'${IMAGE_TAG}'"|' envs/staging/staging-values.yaml
+          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i ${VALUES_FILE}/values-staging.yaml
         fi
 
         # Commit and push changes
-        git add envs/staging/staging-values.yaml
+        git add ${VALUES_FILE}/values-staging.yaml
         git commit -m "feat(backend): update staging image tag to ${IMAGE_TAG} (manual deployment)"
         git push origin main
 
