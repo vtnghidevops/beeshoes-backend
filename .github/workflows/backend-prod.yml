@@ -86,11 +86,11 @@ jobs:
 
         # Update backend image tag in production values file
         if command -v yq &> /dev/null; then
-          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i ${VALUES_FILE}/values-production.yaml
+          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i ${VALUES_FILE}/values-prod.yaml
         fi
 
         # Commit and push changes
-        git add ${VALUES_FILE}/values-production.yaml
+        git add ${VALUES_FILE}/values-pro.yaml
         git commit -m "feat(backend): update production image tag to ${IMAGE_TAG} (manual deployment)"
         git push origin main
 
