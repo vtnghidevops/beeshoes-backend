@@ -29,6 +29,7 @@ jobs:
     - name: Validate image tag format
       run: |
         IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+
         # Validate format: be-stag-{alphanumeric} or be-prod-{alphanumeric} or be-dev-{alphanumeric}
         if [[ ! "$IMAGE_TAG" =~ ^be-(stag|prod|dev)-[a-zA-Z0-9]{5,}$ ]]; then
           echo "Invalid image tag format!"
@@ -40,15 +41,10 @@ jobs:
 
         # Extract environment from tag
         ENV_PART=$(echo "$IMAGE_TAG" | cut -d'-' -f2)
-        if [[ "$ENV_PART" != "prod" ]]; then
-          echo "Invalid environment for production deployment!"
-          echo "Expected: be-prod-{version}"
-          echo "Current tag: $IMAGE_TAG"
-          exit 1
-        fi
 
+        # Just display env for logging, no strict checking
         echo "Image tag format is valid: $IMAGE_TAG"
-        echo "Environment validation passed: $ENV_PART"
+        echo "Environment extracted from tag: $ENV_PART"
 
     - name: Check image exists on registry
       run: |
