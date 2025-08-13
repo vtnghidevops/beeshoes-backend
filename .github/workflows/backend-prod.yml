@@ -29,13 +29,47 @@ jobs:
     - name: Validate image tag format
       run: |
         IMAGE_TAG="${{ github.event.inputs.image_tag }}"
-        if [[ ! "$IMAGE_TAG" =~ ^be-(dev|stag|prod)-[a-zA-Z0-9]+$ ]]; then
-          echo "Invalid image tag format. Expected: be-{env}-{version} (e.g., be-dev-a1b2c)"
+
+        # Validate format: be-stag-{alphanumeric} or be-prod-{alphanumeric} or be-dev-{alphanumeric}
+        if [[ ! "$IMAGE_TAG" =~ ^be-(stag|prod|dev)-[a-zA-Z0-9]{5,}$ ]]; then
+          echo "Invalid image tag format!"
+          echo "Expected format: be-{env}-{version}"
+          echo "Examples: be-stag-a1b2c, be-prod-x1y2z, be-dev-m3n4p"
+          echo "Current tag: $IMAGE_TAG"
           exit 1
         fi
-        echo "Image tag format is valid: $IMAGE_TAG"
 
+        # Extract environment from tag
+        ENV_PART=$(echo "$IMAGE_TAG" | cut -d'-' -f2)
+
+        # Just display env for logging, no strict checking
+        echo "Image tag format is valid: $IMAGE_TAG"
+        echo "Environment extracted from tag: $ENV_PART"
+
+    - name: Check image exists on registry
+      run: |
+        IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+        FULL_IMAGE="${{ secrets.REGISTRY }}/${{ secrets.REPO_NAME }}:${IMAGE_TAG}"
+
+        echo "Checking if image exists on registry: $FULL_IMAGE"
+
+        # Login to registry first
+        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ secrets.REGISTRY }} -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+        # Check if image exists by trying to pull it
+        if docker pull "$FULL_IMAGE" >/dev/null 2>&1; then
+          echo "Image found on registry: $FULL_IMAGE"
+          docker rmi "$FULL_IMAGE" >/dev/null 2>&1 || true
+        else
+          echo "Image not found on registry: $FULL_IMAGE"
+          echo "Please ensure the image has been built and pushed to the registry."
+          exit 1
+        fi
+    - name: Install yq
+      uses: mikefarah/yq@v4.44.2
     - name: Update Helm Chart Repository
+      env:
+        VALUES_FILE: beeshoes-prod-bundle/beeshoes-chart
       run: |
         # Set image tag for deployment
         IMAGE_TAG="${{ github.event.inputs.image_tag }}"
@@ -52,14 +86,11 @@ jobs:
 
         # Update backend image tag in production values file
         if command -v yq &> /dev/null; then
-          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i envs/prod/prod-values.yaml
-        else
-          # Fallback to sed if yq not available
-          sed -i "s|tag:.*|tag: \"${IMAGE_TAG}\"|g" envs/prod/prod-values.yaml
+          yq eval '.backend.image.tag = "'${IMAGE_TAG}'"' -i ${VALUES_FILE}/values-prod.yaml
         fi
 
         # Commit and push changes
-        git add envs/prod/prod-values.yaml
+        git add ${VALUES_FILE}/values-prod.yaml
         git commit -m "feat(backend): update production image tag to ${IMAGE_TAG} (manual deployment)"
         git push origin main
 
