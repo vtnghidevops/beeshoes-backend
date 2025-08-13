@@ -1,0 +1,19 @@
+name: Check Signed-off Commits
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - staging
+      - release/**
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  check_commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for signed-off commits
+        uses: zwaldowski/git-commit-signed-off@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
