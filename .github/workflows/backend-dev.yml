@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     # Only run on merged PRs or tag pushes
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true
     outputs:
       image-tag: ${{ steps.meta.outputs.version }}
       commit-sha: ${{ steps.short-sha.outputs.short_sha }}
