@@ -91,7 +91,7 @@ jobs:
         VALUES_FILE: beeshoes-dev-bundle/beeshoes-chart
       run: |
         # Set image tag for deployment
-        IMAGE_TAG=${{ needs.build-image.outputs.only-tag }}
+        IMAGE_TAG=${{ needs.build-image.outputs.image-tag }}
 
         echo "Updating Helm Chart Repository with new backend image tag: ${IMAGE_TAG}"
           
