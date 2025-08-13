@@ -1,19 +1,18 @@
-name: Check Signed-off Commits
+name: DCO Sign-off
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
       - develop
       - staging
       - release/**
-    types: [opened, synchronize, reopened, edited]
-
+    types: [opened, synchronize, reopened]
 jobs:
-  check_commits:
+  check:
+    name: Check DCO Signed-off-by
     runs-on: ubuntu-latest
     steps:
-      - name: Check for signed-off commits
-        uses: zwaldowski/git-commit-signed-off@v2
+      - uses: live627/check-pr-signoff-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
